@@ -1,23 +1,17 @@
 // FILE: components/LoadingState.tsx
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useCyclingPhrases } from '../hooks/useCyclingPhrases';
 
-const THINKING_PHRASES = [
-  'Analyzing satellite data...',
-  'Correlating temporal changes...',
-  'Consulting external archives...',
-  'Identifying key patterns...',
-  'Generating quantitative charts...',
-  'Compiling report...',
-];
+// The useCyclingPhrases hook is no longer needed, as we'll receive the status message via props.
 
-const LoadingState: React.FC = () => {
-  const currentPhrase = useCyclingPhrases(THINKING_PHRASES, 2500);
+interface LoadingStateProps {
+  statusMessage: string;
+}
 
+const LoadingState: React.FC<LoadingStateProps> = ({ statusMessage }) => {
   return (
     <div className="text-center text-gray-300 flex flex-col items-center gap-8">
-      {/* The "Neural Network" Visual */}
+      {/* The "Neural Network" Visual (Kept exactly as you provided) */}
       <div className="relative w-28 h-28">
 
         {/* --- PARTICLES BEHIND THE ORB (z-10) --- */}
@@ -71,17 +65,17 @@ const LoadingState: React.FC = () => {
       <div>
         <p className="text-xl drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">Agent is thinking...</p>
         
-        {/* Dynamic Cycling Text */}
-        <div className="h-6 mt-1 text-gray-500">
+        {/* Dynamic Text now displays the REAL status from the backend */}
+        <div className="h-6 mt-1 text-gray-500 w-96 text-center">
           <AnimatePresence mode="wait">
             <motion.p
-              key={currentPhrase}
+              key={statusMessage} // Use the incoming message as the key for transitions
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.5, ease: 'easeInOut' }}
             >
-              {currentPhrase}
+              {statusMessage}
             </motion.p>
           </AnimatePresence>
         </div>
