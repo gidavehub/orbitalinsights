@@ -1,0 +1,479 @@
+// FILE: app/page.tsx
+
+'use client';
+import React, { useState, useMemo } from 'react';
+import type { NextPage } from 'next';
+import Head from 'next/head';
+import dynamic from 'next/dynamic';
+import SearchBar from '../components/SearchBar';
+import LoadingState from '../components/LoadingState';
+import TimeSlider from '../components/TimeSlider';
+import AnalysisDisplay from '../components/AnalysisDisplay';
+import { LatLngBoundsExpression, LatLngExpression } from 'leaflet';
+
+const InteractiveMap = dynamic(() => import('../components/InteractiveMap'), {
+  ssr: false,
+  loading: () => <div className="w-full h-[60vh] bg-gray-800 rounded-lg flex items-center justify-center"><LoadingState /></div>
+});
+
+// --- TYPE DEFINITIONS ---
+interface MapConfig {
+  bounds: LatLngBoundsExpression;
+  instanceId: string;
+}
+type TimeInterval = 'day' | 'month' | 'year';
+
+export interface AnalysisResult {
+  summary: string;
+  keyChanges: string[];
+  potentialCauses: Array<{
+    cause: string;
+    explanation: string;
+    confidence: 'Low' | 'Medium' | 'High';
+  }>;
+  predictions: string;
+  charts: Array<{
+    type: 'bar' | 'pie';
+    title: string;
+    data: Array<{ name: string; value: number }>;
+  }>;
+  sources: Array<{
+    title: string;
+    url: string;
+    snippet: string;
+  }>;
+}
+
+// --- HELPER FUNCTIONS ---
+const calculateDateFromOffset = (offset: number, interval: TimeInterval): Date => {
+  const date = new Date();
+  date.setUTCHours(12, 0, 0, 0); 
+  if (interval === 'day') date.setUTCDate(date.getUTCDate() + offset);
+  else if (interval === 'month') date.setUTCMonth(date.getUTCMonth() + offset);
+  else if (interval === 'year') date.setUTCFullYear(date.getUTCFullYear() + offset);
+  return date;
+};
+
+const DEFAULT_VIEW = { center: [25.2048, 55.2708] as LatLngExpression, zoom: 10 };
+
+// --- MAIN PAGE COMPONENT ---
+const Home: NextPage = () => {
+  // State for initial map search
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [mapConfig, setMapConfig] = useState<MapConfig | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [prompt, setPrompt] = useState<string>('');
+
+  // State for map view and time controls
+  const [timeInterval, setTimeInterval] = useState<TimeInterval>('month');
+  const [timeOffset, setTimeOffset] = useState<number>(0);
+  const [view, setView] = useState(DEFAULT_VIEW);
+
+  // State for the analysis agent
+  const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+
+  // Memoized date calculations
+  const historicalDate = useMemo(() => 
+    calculateDateFromOffset(timeOffset, timeInterval), 
+    [timeOffset, timeInterval]
+  );
+  const [currentDate] = useState(new Date());
+
+  // --- HANDLER FUNCTIONS ---
+  const handleSearch = async (searchPrompt: string) => {
+    setIsLoading(true);
+    setMapConfig(null);
+    setError(null);
+    setAnalysisResult(null);
+    setAnalysisError(null);
+    setPrompt(searchPrompt);
+
+    try {
+      const response = await fetch('/api/map-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: searchPrompt }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || `API Error: ${response.statusText}`);
+      }
+      setMapConfig(data);
+    } catch (err: any) {
+      setError(err.message || "An unknown error occurred.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const handleViewChange = (center: LatLngExpression, zoom: number) => {
+    setView({ center, zoom });
+  };
+
+  const handleAnalyze = async () => {
+    if (!mapConfig) return;
+
+    setIsAnalyzing(true);
+    setAnalysisResult(null);
+    setAnalysisError(null);
+
+    try {
+      const response = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bounds: mapConfig.bounds,
+          instanceId: mapConfig.instanceId,
+          historicalDate: historicalDate.toISOString(),
+          currentDate: currentDate.toISOString(),
+          layer: '1_TRUE_COLOR', 
+          layerName: 'Natural Color',
+          prompt: prompt,
+        }),
+      });
+      
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || `Analysis API Error: ${response.statusText}`);
+      }
+      setAnalysisResult(data);
+
+    } catch (err: any) {
+      setAnalysisError(err.message || "An unknown error occurred during analysis.");
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  // --- RENDER ---
+  return (
+    <div className="flex flex-col items-center justify-start min-h-screen bg-gray-900 text-white p-4 sm:p-8">
+      <Head>
+        <title>Orbital Insights</title>
+      </Head>
+
+      <header className="text-center mb-8">
+        <h1 className="text-5xl sm:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
+          Orbital Insights
+        </h1>
+        <p className="mt-2 text-lg text-gray-400">Your direct link to interactive satellite intelligence.</p>
+      </header>
+      
+      <main className="w-full flex flex-col items-center gap-4">
+        <SearchBar onSearch={handleSearch} isLoading={isLoading || isAnalyzing} />
+
+        <div className="mt-4 w-full flex justify-center">
+          {isLoading && <LoadingState />}
+          {error && <p className="text-red-500 text-center">Error: {error}</p>}
+        </div>
+
+        {mapConfig && (
+          // ========================== THE FIX IS HERE ==========================
+          // We use a React Fragment <> to group the elements without adding a
+          // new div that would break the CSS layout. This restores the working
+          // structure from your second code example.
+          <>
+            {/* ---- DUAL MAP DISPLAY (in its original working grid layout) ---- */}
+            <div className="w-full max-w-[90rem] grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* HISTORICAL MAP */}
+              <div className="flex flex-col gap-4">
+                <div className="flex-grow h-[60vh] lg:h-[65vh]">
+                  <InteractiveMap 
+                    bounds={mapConfig.bounds} 
+                    instanceId={mapConfig.instanceId}
+                    date={historicalDate} 
+                    center={view.center}
+                    zoom={view.zoom}
+                    onViewChange={handleViewChange}
+                  />
+                </div>
+                <TimeSlider 
+                  offset={timeOffset}
+                  onOffsetChange={setTimeOffset}
+                  interval={timeInterval}
+                  onIntervalChange={setTimeInterval}
+                  currentDate={historicalDate}
+                />
+              </div>
+              {/* CURRENT MAP */}
+              <div className="flex flex-col gap-4">
+                <div className="flex-grow h-[60vh] lg:h-[65vh]">
+                  <InteractiveMap 
+                    bounds={mapConfig.bounds} 
+                    instanceId={mapConfig.instanceId}
+                    date={currentDate} 
+                    center={view.center}
+                    zoom={view.zoom}
+                    onViewChange={handleViewChange}
+                  />
+                </div>
+                <div className="w-full p-4 bg-gray-800 border-2 border-gray-700 rounded-lg text-center">
+                  <span className="text-lg font-mono text-white">
+                    Latest Available Image ({currentDate.toLocaleDateString('en-CA')})
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* ---- ANALYSIS CONTROL BUTTON (now a sibling to the grid) ---- */}
+            <div className="w-full max-w-4xl mt-4">
+              <button
+                onClick={handleAnalyze}
+                disabled={isAnalyzing}
+                className="w-full p-4 text-xl font-bold text-white bg-gradient-to-r from-green-500 to-teal-600 rounded-lg shadow-lg hover:from-green-600 hover:to-teal-700 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-teal-400 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed disabled:text-gray-400"
+              >
+                {isAnalyzing ? 'Agent is Researching...' : 'Run Deep Analysis'}
+              </button>
+            </div>
+          </>
+          // ======================= END OF THE FIX =======================
+        )}
+
+        {/* ---- ANALYSIS RESULTS SECTION ---- */}
+        <div className="w-full max-w-[90rem] mt-6">
+          {isAnalyzing && <LoadingState />}
+          {analysisError && <p className="text-red-500 text-center text-xl">Analysis Error: {analysisError}</p>}
+          {analysisResult && <AnalysisDisplay result={analysisResult} />}
+        </div>
+      </main>
+
+      <footer className="mt-auto pt-8 text-center text-gray-500">
+        <p>Powered by Next.js, Sentinel Hub, and Gemini 1.5 Pro</p>
+      </footer>
+    </div>
+  );
+};
+
+export default Home;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// FILE: pages/api/analyze.ts
+
+import { NextApiRequest, NextApiResponse } from 'next';
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold, Part } from '@google/generative-ai';
+
+// ==============================================================================
+// 1. SETUP AND CONFIGURATION
+// ==============================================================================
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY; // For Google Search
+const SEARCH_ENGINE_ID = process.env.SEARCH_ENGINE_ID; // For Google Search
+
+if (!GEMINI_API_KEY) throw new Error("Server configuration error: Missing Gemini API Key.");
+if (!GOOGLE_API_KEY || !SEARCH_ENGINE_ID) {
+    throw new Error("Server configuration error: Missing Google API Key or Search Engine ID for web search.");
+}
+
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
+
+const safetySettings = [
+    { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+    { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+    { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+    { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+];
+
+// ==============================================================================
+// 2. SERVER-SIDE TOOLS (Image Fetching & Live Web Search)
+// ==============================================================================
+
+/**
+ * Performs a live web search using the Google Custom Search JSON API.
+ * @param query The search query string.
+ * @returns A promise resolving to a stringified JSON of search results.
+ */
+async function searchTheWeb(query: string): Promise<string> {
+    console.log(`[AGENT] Performing LIVE web search with Google for: "${query}"`);
+    try {
+        const url = `https://www.googleapis.com/customsearch/v1?key=${GOOGLE_API_KEY}&cx=${SEARCH_ENGINE_ID}&q=${encodeURIComponent(query)}&num=5`;
+        
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error("Google Search API Error:", errorData);
+            throw new Error(`Google Search API failed with status: ${response.status}`);
+        }
+        const data = await response.json();
+        
+        if (!data.items) {
+            return JSON.stringify([]); // Return empty array if no results
+        }
+        
+        // Simplify the results for the AI to process efficiently.
+        const simplifiedResults = data.items.map((result: any) => ({
+            title: result.title,
+            url: result.link,
+            snippet: result.snippet
+        }));
+        
+        return JSON.stringify(simplifiedResults);
+
+    } catch (error) {
+        console.error("[AGENT] Web search failed:", error);
+        return "Web search failed. Inform the user that you could not access live information.";
+    }
+}
+
+// Fetches a satellite image from Sentinel Hub for the AI to analyze.
+async function fetchSentinelImageForAnalysis(bbox: [number, number, number, number], instanceId: string, date: Date, layer: string): Promise<Part> {
+    const wmsUrl = `https://services.sentinel-hub.com/ogc/wms/${instanceId}`;
+    const time = `${date.toISOString().split('T')[0]}`;
+    const params = new URLSearchParams({
+        SERVICE: 'WMS', REQUEST: 'GetMap', LAYERS: layer, BBOX: bbox.join(','),
+        WIDTH: '512', HEIGHT: '512', FORMAT: 'image/png', CRS: 'EPSG:4326', TIME: `${time}/${time}`
+    });
+    const requestUrl = `${wmsUrl}?${params.toString()}`;
+    console.log(`[AGENT] Fetching image for analysis from: ${requestUrl}`);
+    const response = await fetch(requestUrl);
+    if (!response.ok) throw new Error(`Failed to fetch image from Sentinel Hub. Status: ${response.status} ${response.statusText}`);
+    const imageBuffer = await response.arrayBuffer();
+    return { inlineData: { mimeType: 'image/png', data: Buffer.from(imageBuffer).toString('base64') } };
+}
+
+// ==============================================================================
+// 3. MAIN API HANDLER
+// ==============================================================================
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
+
+    try {
+        const { bounds, instanceId, historicalDate, currentDate, layer, layerName, prompt } = req.body;
+
+        const wmsBbox: [number, number, number, number] = [bounds[0][1], bounds[0][0], bounds[1][1], bounds[1][0]];
+        const [historicalImage, currentImage] = await Promise.all([
+            fetchSentinelImageForAnalysis(wmsBbox, instanceId, new Date(historicalDate), layer),
+            fetchSentinelImageForAnalysis(wmsBbox, instanceId, new Date(currentDate), layer)
+        ]);
+        
+        const mainPrompt = `
+You are an expert-level climate scientist and geospatial analyst with a mandate to conduct DEEP research. You are relentless in your pursuit of data.
+
+**Core Mission:**
+Analyze the two provided satellite images (Image 1: Historical, Image 2: Current) and synthesize your findings with extensive, live web research to produce a comprehensive report on environmental changes.
+
+**Context:**
+- User's Original Query: "${prompt}"
+- Location: Near ${prompt}
+- Image 1 Date: ${new Date(historicalDate).toDateString()}
+- Image 2 Date: ${new Date(currentDate).toDateString()}
+
+**MANDATORY Directives:**
+1.  **Find Quantitative Data:** Your primary goal is to find hard numbers. Use the web search tool to find data on: sea level rise (mm/year), coastal erosion rates, changes in vegetation cover (%), local temperature anomalies, storm frequency, population density changes, or local industrial output.
+2.  **Generate Visualizations:** You MUST generate data for at least ONE chart (bar or pie). If you find data for sea level rise over several years, create a bar chart. If you find a breakdown of land use (e.g., 60% residential, 20% wetlands, 20% commercial), create a pie chart. DO NOT fail to do this.
+3.  **Perform Deep, Multi-faceted Research:** Do not stop after one search.
+    - Start with a specific query (e.g., "Long Beach Island coastal erosion rates since 2010").
+    - If results are sparse, BROADEN your search (e.g., "New Jersey sea level rise data", "East Coast hurricane frequency trends").
+    - Correlate visual changes in the images with your search findings. If you see a smaller beach in the new image, your research should find data on erosion or sea level rise to support that observation.
+4.  **Cite Everything:** You MUST provide at least three credible sources (news articles, scientific studies, government reports) that you used for your analysis.
+
+**Output Format:**
+Respond ONLY with a single, valid JSON object. Do NOT wrap it in Markdown.
+{
+  "summary": "A detailed, multi-paragraph synthesis of visual changes and researched data. Explain the 'why' behind the changes.",
+  "keyChanges": ["Bulleted list of the most significant visual changes observed between the two images."],
+  "potentialCauses": [{ "cause": "e.g., Accelerated Sea Level Rise", "explanation": "Detailed explanation backed by specific data points and sources from your research.", "confidence": "High | Medium | Low" }],
+  "predictions": "A data-driven prediction for this area's future. What will this place look like in 20 years if trends continue?",
+  "charts": [{ "type": "bar", "title": "e.g., Average Sea Level Rise in NJ", "data": [{ "name": "2010-2015", "value": 3.5 }, { "name": "2016-2021", "value": 4.2 }] }],
+  "sources": [{ "title": "Article or Report Title", "url": "https://...", "snippet": "A brief quote or summary of the source." }]
+}
+`;
+        
+        const chat = model.startChat({
+            tools: [{ functionDeclarations: [ { name: 'searchTheWeb', description: 'Performs a live web search for credible news, data, and scientific reports.', parameters: { type: 'object', properties: { query: { type: 'string', description: 'A precise search query.' } }, required: ['query'] } } ] }],
+            safetySettings
+        });
+
+        const history: Part[] = [
+            { text: mainPrompt },
+            historicalImage,
+            currentImage,
+        ];
+
+        let response = await chat.sendMessage(history);
+        let functionCalls;
+        
+        const MAX_TURNS = 3;
+        let turns = 0;
+
+        while ((functionCalls = response.response.functionCalls()) && turns < MAX_TURNS) {
+            turns++;
+            const call = functionCalls[0];
+            console.log(`[AGENT] Turn ${turns}: Requesting tool call: ${call.name} with query "${call.args.query}"`);
+            
+            if (call.name === 'searchTheWeb') {
+                const searchResults = await searchTheWeb(call.args.query);
+                
+                history.push({ functionCall: call });
+                history.push({ functionResponse: { name: 'searchTheWeb', response: { content: searchResults } } });
+
+                response = await chat.sendMessage(history);
+            } else {
+                break;
+            }
+        }
+        
+        const textResponse = response.response.text();
+        const jsonMatch = textResponse.match(/\{[\s\S]*\}/);
+        
+        if (!jsonMatch) {
+            console.error("Failed to extract JSON from model response:", textResponse);
+            throw new Error("AI response did not contain a valid JSON object.");
+        }
+
+        const jsonString = jsonMatch[0];
+        const jsonResponse = JSON.parse(jsonString);
+        
+        res.status(200).json(jsonResponse);
+
+    } catch (error: any)
+    {
+        console.error("\n--- AN ERROR OCCURRED IN THE ANALYSIS HANDLER ---");
+        console.error(error);
+        res.status(500).json({ error: error.message || "An unknown error occurred during analysis." });
+    }
+}
