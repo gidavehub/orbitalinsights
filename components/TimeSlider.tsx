@@ -1,17 +1,19 @@
+// FILE: components/TimeSlider.tsx
 import React from 'react';
+import { motion } from 'framer-motion';
 
 type TimeInterval = 'day' | 'month' | 'year';
+const INTERVALS: { label: string, value: TimeInterval }[] = [
+  { label: 'Day', value: 'day' },
+  { label: 'Month', value: 'month' },
+  { label: 'Year', value: 'year' },
+];
 
 interface TimeSliderProps {
-  // The current offset from today (e.g., -10 means 10 intervals ago)
   offset: number; 
-  // Function to update the offset when the slider moves
   onOffsetChange: (offset: number) => void; 
-  // The current selected interval ('day', 'month', 'year')
   interval: TimeInterval;
-  // Function to update the interval when a radio button is clicked
   onIntervalChange: (interval: TimeInterval) => void;
-  // The calculated date, passed down for display purposes
   currentDate: Date;
 }
 
@@ -29,9 +31,9 @@ const TimeSlider: React.FC<TimeSliderProps> = ({
 
   const getSliderRange = () => {
     switch(interval) {
-      case 'day': return { min: -365 * 5, max: 0 }; // 5 years of days
-      case 'month': return { min: -12 * 10, max: 0 }; // 10 years of months
-      case 'year': return { min: -20, max: 0 }; // 20 years
+      case 'day': return { min: -365 * 5, max: 0 };
+      case 'month': return { min: -12 * 10, max: 0 };
+      case 'year': return { min: -20, max: 0 };
       default: return { min: -100, max: 0 };
     }
   };
@@ -39,26 +41,27 @@ const TimeSlider: React.FC<TimeSliderProps> = ({
   const { min, max } = getSliderRange();
 
   return (
-    <div className="w-full max-w-4xl p-4 bg-gray-800 border-2 border-gray-700 rounded-lg flex flex-col sm:flex-row items-center gap-4">
-      {/* Interval Controls */}
-      <div className="flex-shrink-0 flex items-center gap-4">
-        <span className="font-semibold text-gray-300">Interval:</span>
-        {(['Day', 'Month', 'Year'] as const).map((label) => {
-          const value = label.toLowerCase() as TimeInterval;
-          return (
-            <label key={value} className="flex items-center space-x-2 cursor-pointer text-white">
-              <input
-                type="radio"
-                name="interval"
-                value={value}
-                checked={interval === value}
-                onChange={() => onIntervalChange(value)}
-                className="form-radio h-4 w-4 text-blue-500 bg-gray-700 border-gray-600 focus:ring-blue-500"
+    <div className="w-full p-4 bg-black/50 backdrop-blur-xl border border-white/10 rounded-xl flex flex-col sm:flex-row items-center gap-6 shadow-lg">
+      {/* Pill-style Segmented Control */}
+      <div className="relative flex-shrink-0 flex items-center gap-2 p-1 bg-black/40 rounded-full">
+        {INTERVALS.map(({ label, value }) => (
+          <button
+            key={value}
+            onClick={() => onIntervalChange(value)}
+            className={`relative z-10 px-4 py-1.5 text-sm font-medium rounded-full transition-colors ${
+              interval === value ? 'text-white' : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            {label}
+            {interval === value && (
+              <motion.div
+                layoutId="activeInterval"
+                className="absolute inset-0 -z-10 bg-gradient-to-br from-cyan-500 to-purple-600 rounded-full shadow-md"
+                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
               />
-              <span>{label}</span>
-            </label>
-          );
-        })}
+            )}
+          </button>
+        ))}
       </div>
 
       {/* Slider */}
@@ -69,11 +72,11 @@ const TimeSlider: React.FC<TimeSliderProps> = ({
           max={max}
           value={offset}
           onChange={handleSliderChange}
-          className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+          className="w-full h-2 rounded-lg appearance-none cursor-pointer time-slider"
         />
-        {/* Date Display */}
-        <div className="flex-shrink-0 w-32 text-center bg-gray-900 p-2 rounded-md">
-           <span className="text-lg font-mono text-white">
+        {/* Holographic Date Display */}
+        <div className="flex-shrink-0 w-32 text-center bg-gray-950/70 p-2 rounded-md ring-1 ring-inset ring-white/20">
+           <span className="text-lg font-mono text-cyan-300" style={{ textShadow: '0 0 5px rgba(34, 211, 238, 0.4)' }}>
              {currentDate.toLocaleDateString('en-CA')}
            </span>
         </div>

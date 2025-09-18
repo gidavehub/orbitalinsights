@@ -19,8 +19,140 @@
   }
 }
 
+@keyframes bg-pan {
+  0% { background-position: 0px 0px; }
+  100% { background-position: 64px 64px; }
+}
+.animate-bg-pan {
+  animation: bg-pan 30s linear infinite;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* === PASTE THIS AT THE END OF app/globals.css === */
+
+/* --- Custom Time Slider Styles --- */
+.time-slider {
+  background: linear-gradient(to right, #22d3ee 0%, #a78bfa 100%);
+  background-size: 100% 4px;
+  background-position: center;
+  background-repeat: no-repeat;
+  --thumb-size: 20px;
+  --thumb-color: #22d3ee;
+  --thumb-shadow: 0 0 10px rgba(34, 211, 238, 0.7);
+}
+.time-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: var(--thumb-size);
+  height: var(--thumb-size);
+  background: var(--thumb-color);
+  border-radius: 50%;
+  border: 2px solid #fff;
+  cursor: pointer;
+  box-shadow: var(--thumb-shadow);
+  margin-top: -8px; /* Vertically center thumb */
+  transition: transform 0.2s ease-in-out;
+}
+.time-slider::-moz-range-thumb {
+  width: var(--thumb-size);
+  height: var(--thumb-size);
+  background: var(--thumb-color);
+  border-radius: 50%;
+  border: 2px solid #fff;
+  cursor: pointer;
+  box-shadow: var(--thumb-shadow);
+  transition: transform 0.2s ease-in-out;
+}
+.time-slider:hover::-webkit-slider-thumb {
+  transform: scale(1.1);
+}
+.time-slider:hover::-moz-range-thumb {
+  transform: scale(1.1);
+}
+
+/* --- Custom Leaflet Map Control Styles --- */
+.leaflet-control-layers {
+  background-color: rgba(10, 10, 10, 0.8) !important;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+  padding: 8px !important;
+}
+.leaflet-control-layers-base label {
+  color: #a0aec0; /* gray-400 */
+  font-weight: 500;
+  transition: all 0.2s ease-in-out;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+.leaflet-control-layers-base label:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+}
+/* Style for the selected layer */
+.leaflet-control-layers-base label input:checked + span {
+  color: #67e8f9; /* cyan-300 */
+  font-weight: 600;
+  text-shadow: 0 0 8px rgba(103, 232, 249, 0.5);
+}
+.leaflet-control-layers-separator {
+  border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+  margin: 8px 0 !important;
+}
+
+
+/* === PASTE THIS AT THE END OF app/globals.css === */
+/* === REPLACE the old animations at the end of app/globals.css with THIS === */
+
+/* --- Custom Neural Network Animations --- */
+@keyframes orbit {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse-slow {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .animate-orbit-fast {
+    animation: orbit 4s linear infinite reverse;
+  }
+  .animate-orbit-medium {
+    animation: orbit 8s linear infinite;
+  }
+  .animate-orbit-slow {
+    animation: orbit 12s linear infinite;
+  }
+  .animate-pulse-slow {
+    animation: pulse-slow 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+}
+
+/* === PASTE THIS AT THE END OF app/globals.css === */
+/* Universal Orbit Animation */
+@keyframes orbit {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }

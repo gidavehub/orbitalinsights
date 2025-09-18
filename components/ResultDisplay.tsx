@@ -12,7 +12,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results }) => {
   }
 
   return (
-    <div className="w-full max-w-4xl mt-8 p-4 bg-gray-800 rounded-lg shadow-xl">
+    <div className="w-full max-w-4xl mt-8 p-4 bg-black/30 backdrop-blur-md border border-white/10 rounded-lg shadow-xl">
       <h2 className="text-2xl font-bold text-white mb-4">Satellite Image Result</h2>
       <div className="rounded-lg overflow-hidden">
         <img 
