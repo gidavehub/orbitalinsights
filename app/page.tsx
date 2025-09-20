@@ -261,7 +261,7 @@ const Home: NextPage = () => {
         <SourceModal source={selectedSource} onClose={() => setSelectedSource(null)} />
 
         <motion.footer className="mt-auto pt-20 text-center text-gray-600" variants={itemVariants}>
-          <p>Powered by Next.js, Sentinel Hub, and Gemini 1.5 Pro</p>
+          <p>By Godswill Iyke Dave '19</p>
         </motion.footer>
       </motion.main>
     </div>
