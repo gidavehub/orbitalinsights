@@ -13,7 +13,7 @@ if (!GEMINI_API_KEY || !SENTINEL_INSTANCE_ID) {
 }
 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
+const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
 // ==============================================================================
 // 2. HELPER FUNCTIONS (Unchanged)
