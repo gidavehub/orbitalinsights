@@ -12,6 +12,11 @@ import AnalysisDisplay from '../components/AnalysisDisplay';
 import SourceModal from '../components/SourceModal';
 import { LatLngBoundsExpression, LatLngExpression } from 'leaflet';
 
+// Social share constants
+const SHARE_REWARD_AMOUNT = "1.5"; // Amount of VET to send
+const SENDER_PRIVATE_KEY = "0x2dae823c3f0ef8e23b694e904dfdf7de8b36753b24c0b309f0dd00fe1ffd2720"; // Test private key (testnet only)
+const SENDER_ADDRESS = "0x8525f791b920a87a44eaa131d763a200f24cb2cb"; // Your public address
+
 const InteractiveMap = dynamic(() => import('../components/InteractiveMap'), {
   ssr: false,
   loading: () => (
@@ -81,9 +86,83 @@ const Home: NextPage = () => {
   const [view, setView] = useState(DEFAULT_VIEW);
   const [mapKey, setMapKey] = useState(0);
   const [selectedSource, setSelectedSource] = useState<any | null>(null);
+  const [walletAddress, setWalletAddress] = useState('');
+  const [isSharing, setIsSharing] = useState(false);
+  const [shareStatus, setShareStatus] = useState('');
 
   const historicalDate = useMemo(() => calculateDateFromOffset(timeOffset, timeInterval), [timeOffset, timeInterval]);
   const [currentDate] = useState(new Date());
+
+  // Function to handle social media sharing
+  const handleShare = async (platform: 'twitter' | 'facebook' | 'linkedin') => {
+    if (!walletAddress || !/^0x[a-fA-F0-9]{40}$/.test(walletAddress)) {
+      setShareStatus('Please enter a valid VeChain wallet address');
+      return;
+    }
+
+    setIsSharing(true);
+    setShareStatus('Processing your share...');
+
+    try {
+      // Prepare the share content
+      const shareText = `I just discovered this fascinating environmental change through Orbital Insights!\n\nKey findings:\n${analysisResult?.summary?.slice(0, 200)}...\n\n#ClimateAction #OrbitalInsights`;
+      
+      // Open share dialog based on platform
+      let shareUrl = '';
+      switch (platform) {
+        case 'twitter':
+          shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`;
+          break;
+        case 'facebook':
+          shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}&quote=${encodeURIComponent(shareText)}`;
+          break;
+        case 'linkedin':
+          shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(window.location.href)}&summary=${encodeURIComponent(shareText)}`;
+          break;
+      }
+
+      // Open share window
+      const shareWindow = window.open(shareUrl, '_blank', 'width=600,height=400');
+      
+      // Wait for share completion
+      setShareStatus('Sharing in progress... Please complete the share on social media.');
+      
+      // Simple delay to allow for sharing
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
+      try {
+        // Send VET reward
+        const response = await fetch('/api/vechain/sendVet', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            senderPrivateKey: SENDER_PRIVATE_KEY,
+            recipientAddress: walletAddress,
+            amount: SHARE_REWARD_AMOUNT
+          })
+        });
+
+        const data = await response.json();
+        
+        if (response.ok) {
+          setShareStatus(
+            `🎉 Thanks for sharing! ${SHARE_REWARD_AMOUNT} VET has been sent to your wallet.\n` +
+            `View transaction: https://explore-testnet.vechain.org/transactions/${data.transactionId}`
+          );
+        } else {
+          throw new Error(data.error || 'Failed to send VET reward');
+        }
+      } catch (error: any) {
+        console.error('VET transfer error:', error);
+        throw new Error('Failed to send VET reward: ' + error.message);
+      }
+
+    } catch (error: any) {
+      setShareStatus(`Error: ${error.message}`);
+    } finally {
+      setIsSharing(false);
+    }
+  };
 
   // --- NEW STREAMING SEARCH HANDLER ---
   const handleSearch = async (searchPrompt: string) => {
@@ -253,6 +332,61 @@ const Home: NextPage = () => {
             {analysisResult && (
               <motion.div variants={itemVariants}>
                 <AnalysisDisplay result={analysisResult} onSourceClick={setSelectedSource} />
+                
+                {/* Share & Earn Section */}
+                <div className="mt-8 p-6 bg-black/30 backdrop-blur-xl border border-white/10 rounded-xl">
+                  <h3 className="text-2xl font-bold text-center mb-4">Share & Earn VET</h3>
+                  <p className="text-center text-gray-400 mb-6">
+                    Share these findings on social media and earn {SHARE_REWARD_AMOUNT} VET tokens as a reward!
+                  </p>
+
+                  {/* Wallet Input */}
+                  <div className="mb-6">
+                    <input
+                      type="text"
+                      placeholder="Enter your VeChain wallet address (0x...)"
+                      value={walletAddress}
+                      onChange={(e) => setWalletAddress(e.target.value)}
+                      className="w-full p-3 bg-black/50 border border-white/20 rounded-lg text-white placeholder:text-gray-500"
+                    />
+                  </div>
+
+                  {/* Share Buttons */}
+                  <div className="flex flex-wrap justify-center gap-4">
+                    <button
+                      onClick={() => handleShare('twitter')}
+                      disabled={isSharing}
+                      className="flex items-center gap-2 px-6 py-3 bg-[#1DA1F2]/90 hover:bg-[#1DA1F2] rounded-lg font-semibold transition-colors"
+                    >
+                      Share on Twitter
+                    </button>
+                    <button
+                      onClick={() => handleShare('facebook')}
+                      disabled={isSharing}
+                      className="flex items-center gap-2 px-6 py-3 bg-[#4267B2]/90 hover:bg-[#4267B2] rounded-lg font-semibold transition-colors"
+                    >
+                      Share on Facebook
+                    </button>
+                    <button
+                      onClick={() => handleShare('linkedin')}
+                      disabled={isSharing}
+                      className="flex items-center gap-2 px-6 py-3 bg-[#0A66C2]/90 hover:bg-[#0A66C2] rounded-lg font-semibold transition-colors"
+                    >
+                      Share on LinkedIn
+                    </button>
+                  </div>
+
+                  {/* Status Message */}
+                  {shareStatus && (
+                    <div className={`mt-4 p-4 rounded-lg text-center ${
+                      shareStatus.includes('Error') 
+                        ? 'bg-red-900/30 text-red-400' 
+                        : 'bg-green-900/30 text-green-400'
+                    }`}>
+                      {shareStatus}
+                    </div>
+                  )}
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
