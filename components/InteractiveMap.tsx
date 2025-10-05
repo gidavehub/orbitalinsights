@@ -11,7 +11,7 @@ const MapViewController: React.FC<{ bounds: LatLngBoundsExpression }> = ({ bound
     if (bounds && Object.keys(bounds).length > 0) {
       map.fitBounds(bounds);
     }
-  }, [bounds, map]);
+  }, [bounds, map]); 
   return null;
 };
 

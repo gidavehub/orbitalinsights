@@ -13,4 +13,4 @@ export const useCyclingPhrases = (phrases: string[], interval: number): string =
   }, [phrases, interval]);
 
   return phrases[phraseIndex];
-};
+}; 

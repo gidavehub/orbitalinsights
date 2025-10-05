@@ -11,7 +11,7 @@ const SENTINEL_INSTANCE_ID = process.env.SENTINEL_INSTANCE_ID;
 if (!GEMINI_API_KEY || !SENTINEL_INSTANCE_ID) {
     throw new Error("Server configuration error: Missing Gemini API Key or Sentinel Instance ID.");
 }
-
+ 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 

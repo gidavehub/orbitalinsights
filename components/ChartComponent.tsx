@@ -18,7 +18,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
         <p className="intro text-cyan-300">{`${payload[0].name} : ${payload[0].value.toLocaleString()}`}</p>
       </div>
     );
-  }
+  } 
   return null;
 };
 

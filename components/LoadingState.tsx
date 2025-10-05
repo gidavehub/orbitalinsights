@@ -13,7 +13,7 @@ const LoadingState: React.FC<LoadingStateProps> = ({ statusMessage }) => {
     <div className="text-center text-gray-300 flex flex-col items-center gap-8">
       {/* The "Neural Network" Visual (Kept exactly as you provided) */}
       <div className="relative w-28 h-28">
-
+ 
         {/* --- PARTICLES BEHIND THE ORB (z-10) --- */}
         <div 
           className="absolute inset-[-10px] z-10" 

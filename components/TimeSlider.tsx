@@ -18,7 +18,7 @@ interface TimeSliderProps {
 }
 
 const TimeSlider: React.FC<TimeSliderProps> = ({ 
-  offset, 
+  offset,  
   onOffsetChange,
   interval,
   onIntervalChange,

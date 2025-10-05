@@ -14,7 +14,7 @@ const SENTINEL_INSTANCE_ID = process.env.SENTINEL_INSTANCE_ID;
 if (!GEMINI_API_KEY || !SENTINEL_INSTANCE_ID || !GOOGLE_API_KEY || !SEARCH_ENGINE_ID) {
     throw new Error("Server configuration error: Missing one or more required API keys or IDs in .env.local file.");
 }
-
+ 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 

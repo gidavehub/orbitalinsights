@@ -9,7 +9,7 @@ interface AnalysisDisplayProps {
   result: AnalysisResult;
   onSourceClick: (source: Source) => void;
 }
-
+ 
 // --- SVG ICON COMPONENTS ---
 const SectionHeader: React.FC<{ title: string, icon: React.ReactNode }> = ({ title, icon }) => (
   <div className="flex items-center gap-3 mb-4">

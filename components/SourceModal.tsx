@@ -18,7 +18,7 @@ const SourceModal: React.FC<SourceModalProps> = ({ source, onClose }) => {
       // Reset loading state for each new source
       setIsLoading(true); 
     }
-  }, [source]);
+  }, [source]); 
 
   return (
     <AnimatePresence>

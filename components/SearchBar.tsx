@@ -15,7 +15,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, isLoading }) => {
       onSearch(prompt.trim());
     }
   };
-
+ 
   return (
     <div className="relative w-full max-w-4xl mx-auto group">
       {/* Interactive Aurora background */}

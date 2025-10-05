@@ -10,7 +10,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results }) => {
   if (!results || !results.image) {
     return null; // Don't render anything if there's no image
   }
-
+ 
   return (
     <div className="w-full max-w-4xl mt-8 p-4 bg-black/30 backdrop-blur-md border border-white/10 rounded-lg shadow-xl">
       <h2 className="text-2xl font-bold text-white mb-4">Satellite Image Result</h2>
